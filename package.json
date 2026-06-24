@@ -1,0 +1,19 @@
+{
+  "name": "warm-2048",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A responsive 2048 game with a bright, warm visual style.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "node --check src/main.js"
+  },
+  "devDependencies": {
+    "vite": "8.1.0"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}
