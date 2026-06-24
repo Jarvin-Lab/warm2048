@@ -1,10 +1,10 @@
-# Warm 2048
+# 2048
 
 一款明亮暖色风格的 2048 网页游戏，支持键盘方向键与移动端滑动操作。
 
-[在线体验](https://warm2048.pages.dev/)
+[在线体验](https://jarvin-lab-2048.pages.dev/)
 
-![Warm 2048 游戏界面](./docs/gameplay.png)
+![2048 游戏界面](./docs/gameplay.png)
 
 ## 功能
 
