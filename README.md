@@ -2,6 +2,10 @@
 
 一款明亮暖色风格的 2048 网页游戏，支持键盘方向键与移动端滑动操作。
 
+[在线体验](https://warm2048.pages.dev/)
+
+![Warm 2048 游戏界面](./docs/gameplay.png)
+
 ## 功能
 
 - 完整的 2048 合并与计分逻辑
@@ -37,6 +41,10 @@ npm run preview
 ```text
 .
 ├── index.html          # 页面入口与语义结构
+├── public/
+│   └── favicon.png     # 浏览器标签与移动端图标
+├── docs/
+│   └── gameplay.png    # README 游戏界面截图
 ├── src/
 │   ├── main.js         # 游戏状态、交互与渲染逻辑
 │   └── styles.css      # 视觉系统、动效与响应式样式
