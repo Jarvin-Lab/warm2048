@@ -11,6 +11,8 @@ const size = 4;
 const swipeThreshold = 32;
 const bestScoreStorageKey = "2048-best-score";
 const winningTileValue = 2048;
+const tileMoveDuration = 120;
+const tileMergeDuration = 200;
 let tiles = Array(size * size).fill(null);
 let touchStartPoint = null;
 let lastDirection = null;
@@ -20,6 +22,7 @@ let isGameOver = false;
 let hasWon = false;
 let nextTileId = 1;
 let lineAnimationTimer = null;
+let isAnimating = false;
 
 function createBoard() {
   const cells = Array.from({ length: size * size }, (_, index) => {
@@ -63,6 +66,12 @@ function createTile(value, options = {}) {
   };
 }
 
+function createNextTile(value, options = {}) {
+  const tile = createTile(value, options);
+  nextTileId += 1;
+  return tile;
+}
+
 function getLineIndexes(direction) {
   const lines = [];
 
@@ -93,25 +102,50 @@ function getLineIndexes(direction) {
   return lines;
 }
 
-function mergeLine(line) {
-  const values = line.filter((tile) => tile !== null);
+function mergeLine(line, lineIndexes, options = {}) {
+  const values = line
+    .map((tile, lineIndex) => (tile === null ? null : { tile, lineIndex }))
+    .filter((entry) => entry !== null);
   const merged = [];
+  const displayTiles = [];
   let gainedScore = 0;
 
   for (let index = 0; index < values.length; index += 1) {
-    if (values[index + 1] && values[index].value === values[index + 1].value) {
-      const mergedValue = values[index].value * 2;
-      merged.push({
-        ...values[index],
-        value: mergedValue,
-        isMerged: true,
-        isNew: false,
-      });
+    const targetIndex = lineIndexes[merged.length];
+    const current = values[index];
+    const next = values[index + 1];
+
+    if (next && current.tile.value === next.tile.value) {
+      const mergedValue = current.tile.value * 2;
+      const mergedTile = options.allocateIds
+        ? createNextTile(mergedValue, { isMerged: true })
+        : {
+            ...next.tile,
+            value: mergedValue,
+            isMerged: true,
+            isNew: false,
+          };
+
+      displayTiles.push(
+        {
+          tile: { ...current.tile, isNew: false, isMerged: false },
+          index: targetIndex,
+        },
+        {
+          tile: { ...next.tile, isNew: false, isMerged: false },
+          index: targetIndex,
+        },
+      );
+      merged.push(mergedTile);
       gainedScore += mergedValue;
       index += 1;
     } else {
+      displayTiles.push({
+        tile: { ...current.tile, isNew: false, isMerged: false },
+        index: targetIndex,
+      });
       merged.push({
-        ...values[index],
+        ...current.tile,
         isMerged: false,
         isNew: false,
       });
@@ -124,20 +158,23 @@ function mergeLine(line) {
 
   return {
     line: merged,
+    displayTiles,
     gainedScore,
   };
 }
 
-function getMovedTiles(direction, sourceTiles) {
+function getMovedTiles(direction, sourceTiles, options = {}) {
   const nextTiles = [...sourceTiles];
+  const displayTiles = [];
   const lines = getLineIndexes(direction);
   let gainedScore = 0;
   const changedLineIndexes = [];
 
   lines.forEach((lineIndexes, lineNumber) => {
     const line = lineIndexes.map((index) => sourceTiles[index]);
-    const mergedLine = mergeLine(line);
+    const mergedLine = mergeLine(line, lineIndexes, options);
     gainedScore += mergedLine.gainedScore;
+    displayTiles.push(...mergedLine.displayTiles);
     const lineChanged = lineIndexes.some((tileIndex, lineIndex) => {
       const sourceTile = sourceTiles[tileIndex];
       const nextTile = mergedLine.line[lineIndex];
@@ -155,6 +192,7 @@ function getMovedTiles(direction, sourceTiles) {
 
   return {
     tiles: nextTiles,
+    displayTiles,
     gainedScore,
     changedLineIndexes,
     hasChanged: nextTiles.some((tile, index) => {
@@ -165,7 +203,7 @@ function getMovedTiles(direction, sourceTiles) {
 }
 
 function moveTiles(direction) {
-  const result = getMovedTiles(direction, tiles);
+  const result = getMovedTiles(direction, tiles, { allocateIds: true });
   tiles = result.tiles;
   return result;
 }
@@ -187,8 +225,7 @@ function addRandomTile() {
 
   const randomIndex = Math.floor(Math.random() * emptyIndexes.length);
   const tileIndex = emptyIndexes[randomIndex];
-  tiles[tileIndex] = createTile(getRandomTileValue(), { isNew: true });
-  nextTileId += 1;
+  tiles[tileIndex] = createNextTile(getRandomTileValue(), { isNew: true });
 }
 
 function updateBestScore() {
@@ -225,23 +262,27 @@ function clearAnimationFlags() {
 function renderBoard(options = {}) {
   const previousRects = options.animate ? getTileRects() : new Map();
   const cells = board.querySelectorAll(".cell");
+  const displayTiles =
+    options.displayTiles ??
+    tiles
+      .map((tile, index) => (tile === null ? null : { tile, index }))
+      .filter((entry) => entry !== null);
   updateBestScore();
   scoreElement.textContent = score;
   bestScoreElement.textContent = bestScore;
 
-  tiles.forEach((tile, index) => {
-    const cell = cells[index];
+  cells.forEach((cell, index) => {
+    const tile = tiles[index];
     cell.replaceChildren();
     cell.dataset.value = tile?.value ?? "";
     cell.setAttribute(
       "aria-label",
       tile === null ? `第 ${index + 1} 个格子，空` : `第 ${index + 1} 个格子，数字 ${tile.value}`,
     );
+  });
 
-    if (!tile) {
-      return;
-    }
-
+  displayTiles.forEach(({ tile, index }) => {
+    const cell = cells[index];
     const tileElement = document.createElement("div");
     tileElement.className = "tile";
     tileElement.dataset.value = tile.value;
@@ -281,12 +322,12 @@ function renderBoard(options = {}) {
 
         window.setTimeout(() => {
           tileElement.classList.remove("tile--moving");
-        }, 160);
+        }, tileMoveDuration + 40);
       }
     }
   });
 
-  window.setTimeout(clearAnimationFlags, 360);
+  window.setTimeout(clearAnimationFlags, tileMoveDuration + tileMergeDuration);
 }
 
 function playLineEdgeAnimation(direction, changedLineIndexes) {
@@ -353,6 +394,7 @@ function startGame() {
   score = 0;
   isGameOver = false;
   hasWon = false;
+  isAnimating = false;
   nextTileId = 1;
   hideMessage();
   addRandomTile();
@@ -361,7 +403,7 @@ function startGame() {
 }
 
 function handleMove(direction) {
-  if (isGameOver || !gameMessage.hidden) {
+  if (isAnimating || isGameOver || !gameMessage.hidden) {
     return;
   }
 
@@ -375,12 +417,21 @@ function handleMove(direction) {
     return;
   }
 
-  score += result.gainedScore;
-  addRandomTile();
-  renderBoard({ animate: true });
+  isAnimating = true;
+  renderBoard({ animate: true, displayTiles: result.displayTiles });
   playLineEdgeAnimation(direction, result.changedLineIndexes);
-  checkWin();
-  checkGameOver();
+
+  window.setTimeout(() => {
+    score += result.gainedScore;
+    addRandomTile();
+    renderBoard();
+    checkWin();
+    checkGameOver();
+  }, tileMoveDuration);
+
+  window.setTimeout(() => {
+    isAnimating = false;
+  }, tileMoveDuration + tileMergeDuration);
 }
 
 function handleKeyDown(event) {

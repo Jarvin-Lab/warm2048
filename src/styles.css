@@ -200,7 +200,8 @@ kbd {
 .tile {
   display: grid;
   place-items: center;
-  position: relative;
+  position: absolute;
+  inset: 0;
   z-index: 3;
   width: 100%;
   height: 100%;
@@ -229,7 +230,7 @@ kbd {
 .tile--moving { z-index: 10; }
 .tile--merged { z-index: 8; }
 .tile--merged .tile-content {
-  animation: tile-merge 200ms ease 100ms backwards;
+  animation: tile-merge 200ms ease backwards;
   box-shadow: 0 12px 24px rgba(74, 64, 54, 0.18), 0 0 0 4px rgba(255, 248, 239, 0.22);
 }
 
