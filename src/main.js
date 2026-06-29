@@ -281,12 +281,12 @@ function renderBoard(options = {}) {
 
         window.setTimeout(() => {
           tileElement.classList.remove("tile--moving");
-        }, 280);
+        }, 160);
       }
     }
   });
 
-  window.setTimeout(clearAnimationFlags, 300);
+  window.setTimeout(clearAnimationFlags, 360);
 }
 
 function playLineEdgeAnimation(direction, changedLineIndexes) {
